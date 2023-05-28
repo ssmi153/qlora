@@ -496,6 +496,10 @@ def make_data_module(tokenizer: transformers.PreTrainedTokenizer, args) -> Dict:
     elif args.dataset == 'alpaca-clean':
         dataset = load_dataset("yahma/alpaca-cleaned")
         dataset = dataset.map(extract_alpaca_dataset, remove_columns=['instruction'])
+    # Student feedback - same format as Alpaca
+    elif args.dataset == 'student-feedback-v1':
+        dataset = load_dataset("ssmi153/student-feedback-v1", use_auth_token=os.getenv("HF_TOKEN"))
+        dataset = dataset.map(extract_alpaca_dataset, remove_columns=['instruction'])
     # Chip2
     elif args.dataset == 'chip2':
         dataset = load_dataset("laion/OIG", data_files='unified_chip2.jsonl')
