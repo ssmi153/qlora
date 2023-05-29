@@ -6,6 +6,8 @@ import copy
 import json
 import os
 from os.path import exists, join, isdir
+import calendar
+import time
 from dataclasses import dataclass, field
 import sys
 from typing import Optional, Dict, Sequence
@@ -160,6 +162,7 @@ class TrainingArguments(transformers.Seq2SeqTrainingArguments):
         metadata={"help": "To use wandb or something else for reporting."}
     )
     output_dir: str = field(default='./output', metadata={"help": 'The output dir for logs and checkpoints'})
+    huggingface_repo_to_save: str = field(default='none', metadata={"help": "The huggingface repo to use for the model. Leave empty or 'none' if you don't want to save this model."})
     optim: str = field(default='paged_adamw_32bit', metadata={"help": 'The optimizer to be used'})
     per_device_train_batch_size: int = field(default=1, metadata={"help": 'The training batch size per GPU. Increase for better speed.'})
     gradient_accumulation_steps: int = field(default=16, metadata={"help": 'How many gradients to accumulate before to perform an optimizer step'})
@@ -227,10 +230,13 @@ def find_all_linear_names(args, model):
 class SavePeftModelCallback(transformers.TrainerCallback):
     def save_model(self, args, state, kwargs):
         print('Saving PEFT checkpoint...')
+        adapter_suffix = ''
         if state.best_model_checkpoint is not None:
             checkpoint_folder = os.path.join(state.best_model_checkpoint, "adapter_model")
+            adapter_suffix = state.best_model_checkpoint
         else:
             checkpoint_folder = os.path.join(args.output_dir, f"{PREFIX_CHECKPOINT_DIR}-{state.global_step}")
+            adapter_suffix = state.global_step
 
         peft_model_path = os.path.join(checkpoint_folder, "adapter_model")
         kwargs["model"].save_pretrained(peft_model_path)
@@ -238,6 +244,12 @@ class SavePeftModelCallback(transformers.TrainerCallback):
         pytorch_model_path = os.path.join(checkpoint_folder, "pytorch_model.bin")
         if os.path.exists(pytorch_model_path):
             os.remove(pytorch_model_path)
+        
+        if (args.huggingface_repo_to_save is not None) and (args.huggingface_repo_to_save != 'none') and (args.huggingface_repo_to_save != ''):
+            print('Saving to HuggingFace...')
+            timestamp = calendar.timegm(time.gmtime())
+            adapter_name = f'adapter_model_{adapter_suffix}_{timestamp}'
+            kwargs["model"].push_adapter_to_hub(repo_name=args.huggingface_repo_to_save, adapter_name=adapter_name)
 
     def on_save(self, args, state, control, **kwargs):
         self.save_model(args, state, kwargs)
