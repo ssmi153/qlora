@@ -249,7 +249,7 @@ class SavePeftModelCallback(transformers.TrainerCallback):
             print('Saving to HuggingFace...')
             timestamp = calendar.timegm(time.gmtime())
             adapter_name = f'adapter_model_{adapter_suffix}_{timestamp}'
-            kwargs["model"].push_adapter_to_hub(repo_name=args.huggingface_repo_to_save, adapter_name=adapter_name)
+            kwargs["model"].push_adapter_to_hub(repo_name=args.huggingface_repo_to_save, adapter_name=adapter_name, use_auth_token=os.getenv("HF_TOKEN"))
 
     def on_save(self, args, state, control, **kwargs):
         self.save_model(args, state, kwargs)
